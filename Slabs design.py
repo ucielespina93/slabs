@@ -1,31 +1,84 @@
+import math
 
 class slab():
+
+	"""This class contains the methods and properties common to slabs, from it inherit the two types of loas, One-Way and Two-Way
+	"""
+
 	def __init__(self):
-		self.__Dws=50 #psf
-		self.__L=100 #psf
-		self.__lx=240 #in
-		self.__cx=15 #in
-		self.__ly=240 #in
-		self.__cy=15 #in
-		self.__fy=60000 #psi
-		self.__fc=4000
-		self.__wc=150 #psi
-		self.__steelDensity=0.283564814814815 #pci
 
-	def __input(self,Dws,L,lx,cx,ly,cy,fy,fc,wc): #INPUT PARAMETER
-		self.__Dws=Dws
-		self.__L=L
-		self.__lx=lx
-		self.__ly=ly
-		self.__cx=cx
-		self.__cy=cy
-		self.__fy=fy
-		self.__fc=fc
-		self.__wc=wc
+		"""This method is the constructor. Contains the common inputs on the slabs, loads and characteristics of the materials
 
-	#Start Auxiliary functions
+		"""
 
-	def __linterpolate(self,x,filaX,filaY,matriz): #Function that interpolates the x value in an matrix, that we define the values ​​in x in rowX and y values ​​in row Y
+		self._deadLoadWithoutSlabWeight=50
+		self._liveLoad=100
+
+		self._strengthReductionFactor=0.90
+
+		self._specifiedYieldStrengthReinforcement=60000
+		self._specifiedCompressiveStrengthConcrete=4000
+		self._concreteDensity=150
+		self._steelDensity=0.283564814814815
+
+	def geometricParameters(self,lengthSpanX,columnDimensionX,lengthSpanY,columnDimensionY):
+
+		"""This method contains the particular inputs on the slabs, characteristics of the materials
+		Arguments:
+			
+			lengthSpanX = length of span parallel to the x-axis, measured center-to-center of supports, in
+			lengthSpanY = length of span parallel to the y-axis, measured center-to-center of supports, in
+			columnDimensionX = column dimensions parallel to the x-axis, in
+			columnDimensionY= column dimensions parallel to the y-axis, in
+
+
+		Returns:
+
+			lengthSpanX = length of span parallel to the x-axis, measured center-to-center of supports, in
+			lengthSpanY = length of span parallel to the y-axis, measured center-to-center of supports, in
+			columnDimensionX = column dimensions parallel to the x-axis, in
+			columnDimensionY= column dimensions parallel to the y-axis, in
+
+
+			lengthClearSpanX = length of clear span measured face-to-face of supports parallel to the x-axis, in
+			lengthClearSpanY = length of clear span measured face-to-face of supports parallel to the y-axis, in
+			lengthSpanMinimum = length of span measured face-to-face of supports minimum, in
+			lengthSpanMaximum = length of span measured face-to-face of supports maximum, in
+			lengthClearSpanMinimum = length of clear span measured face-to-face of supports minimum, in
+			lengthClearSpanMaximum = length of clear span measured face-to-face of supports maximum, in
+			ratioLengthSpan = ratio of longer to shorter panel dimensions
+
+		"""
+
+		self._lengthSpanX=lengthSpanX
+		self._columnDimensionX=columnDimensionX
+		self._lengthSpanY=lengthSpanY
+		self._columnDimensionY=columnDimensionY
+
+		self._lengthClearSpanX=self._lengthSpanX-self._columnDimensionX
+		self._lengthClearSpanY=self._lengthSpanY-self._columnDimensionY
+		self._lengthSpanMinimum=min(self._lengthSpanX,self._lengthSpanY)
+		self._lengthSpanMaximum=max(self._lengthSpanX,self._lengthSpanY)
+		self._lengthClearSpanMinimum=min(self._lengthClearSpanX,self._lengthClearSpanY)
+		self._lengthClearSpanMaximum=max(self._lengthClearSpanX,self._lengthClearSpanY)
+		self.ratioLengthSpan=self._lengthSpanMaximum/self._lengthSpanMinimum
+
+	def _linealInterpolate(self,x,filaX,filaY,matriz): 
+
+		"""	This method interpolates the x value in an matrix, that we define the values ​​in x in rowX and y values ​​in row Y
+		Arguments:
+
+			x = value in X to interpolate
+			filaX = row number where array x is located
+			filaY = row number where array y is located
+			matriz = matrix containing arrays x and y
+
+		Returns:
+			
+			y = interpolated value
+
+		"""
+
 		vectorX=[]
 		vectorY=[]
 		for i in range(len(matriz[filaX])):
@@ -37,159 +90,351 @@ class slab():
 		y=(vectorY[0])+(((vectorY[1])-(vectorY[0]))/((vectorX[1])-(vectorX[0])))*(x-(vectorX[0]))
 		return y
 
-	def __rundingup(self,x): #rounding up
-		if (x%(x//1) ==0):
-			y=x
-		else:
-			y=x//1+1
-		return y
+	def _loadForMinimumStiffnessThickness(self):
 
-	#End Auxiliary functions
+		"""This method calculates the factored load for minimum stiffness thickness
 
-	def __ratioo(self): #1. Ratio of longer to shorter panel dimensions
-		self.__lnx=self.__lx-self.__cx
-		self.__lny=self.__ly-self.__cy
-		self.__lmin=min(self.__lx,self.__ly)
-		self.__lmax=max(self.__lx,self.__ly)
-		self.__lnmin=min(self.__lnx,self.__lny)
-		self.__lnmax=max(self.__lnx,self.__lny)
-		self.__ratio=self.__lmax/self.__lmin
+		Returns:
 
-	def __minThickness(self): #2. Minimum slab thickness
-		if self.__ratio>2:
-			self.__hMin=self.__rundingup((self.__lnmin/20)*(0.4+self.__fy/100000))
-		else:
-			self.__minimumThickness=[[40000,60000,80000],[self.__lnmax/36,self.__lnmax/33,self.__lnmax/30]]
-			self.__hMin=self.__rundingup(self.__linterpolate(self.__fy,0,1,self.__minimumThickness))
+			deadLoadForMinimumStiffnessThickness = dead load for minimum stiffness thickness, psi
+			factoredLoadForMinimumStiffnessThickness = factored load for minimum stiffness thickness, psi
 
-	def __Deadhm(self): #3. Factored load
-		self.__DslabhMin=self.__wc*self.__hMin*(1/12) #1/12 units in-->ft
-		self.__DeadhMin=self.__DslabhMin+self.__Dws
+		"""
 
-	def __quhm(self):
-		self.__U1hMin=1.4*self.__DeadhMin
-		self.__U2hMin=1.2*self.__DeadhMin+1.6*self.__L
-		self.__quhMin=max(self.__U1hMin,self.__U2hMin)*(1/144) #1/144 units psf-->psi
+		#In deadLoadSlab multiply by (1/12) to convert units in-->ft
+		deadLoadSlab=self._concreteDensity*self._minimumThickness*(1/12)
+		self._deadLoadForMinimumStiffnessThickness=deadLoadSlab+self._deadLoadWithoutSlabWeight
+
+		loadCombination1=1.4*self._deadLoadForMinimumStiffnessThickness
+		loadCombination2=1.2*self._deadLoadForMinimumStiffnessThickness+1.6*self._liveLoad
+
+		#In factoredLoadForMinimumStiffnessThickness multiply by (1/144) to convert units psf-->psi
+		self._factoredLoadForMinimumStiffnessThickness=max(loadCombination1,loadCombination2)*(1/144) 
 			
-	def __LoadCond(self): #Load condition
-		if self.__ratio>2:
-			if self.__L>3*self.__DeadhMin:
-				print("Does not verify the load condition.")
-			else:
-				print("The load condition verifies.")
-		if self.__ratio<=2:
-			if self.__L>2*self.__DeadhMin:
-				print("Does not verify the load condition.")
-			else:
-				print("The load condition verifies.")	
+	def _factoredLoadForDefinitiveThickness(self):
 
-	def __Vu(self): #4. Shear Verification
-		if self.__ratio>2:
-			self.__Vuu=1.15*self.__quhMin*self.__lnmax/2
+		"""This method calculates the factored load for definitive thickness
+
+		Returns:
+
+			factoredLoad = factored load for definitive thickness, psi
+
+		"""
+
+		#In deadLoadSlab multiply by (1/12) to convert units in-->ft
+		deadLoadSlab=self._concreteDensity*self.slabThickness*(1/12)
+		deadLoad=deadLoadSlab+self._deadLoadWithoutSlabWeight
+
+		loadCombination1=1.4*deadLoad
+		loadCombination2=1.2*deadLoad+1.6*self._liveLoad
+
+		#In factoredLoad multiply by (1/144) to convert units psf-->psi
+		self._factoredLoad=max(loadCombination1,loadCombination2)*(1/144)
+
+	def _slabReinforcementArea(self):
+
+		"""This method calculates the reinforcement area to verify with the minimum requirements and the factored moment
+
+		Returns:
+			
+			reinforcementArea = reinforcement area for minimum requirements and the factored moment, in²
+			strengthReductionFactor = strength reduction factor for tension controller
+		"""
+
+		self._strengthReductionFactor=0.9
+		self._reinforcementArea=[]
+		i=0
+		for i in range(len(self._lengthAppliesMoments)):
+			reinforcementForMomentRequirements=(0.85*self._specifiedCompressiveStrengthConcrete*self._lengthAppliesMoments[i]/self._specifiedYieldStrengthReinforcement*(self._distanceToTensionReinforcement-((self._distanceToTensionReinforcement**2-((2*self._factoredMoments[i])/(self._strengthReductionFactor*0.85*self._specifiedCompressiveStrengthConcrete*self._lengthAppliesMoments[i]))))**0.5))
+			reinforcementForMinimumRequirements=(0.0018*self._lengthAppliesMoments[i]*self.slabThickness)
+			self._reinforcementArea.append(max(reinforcementForMomentRequirements,reinforcementForMinimumRequirements))
+		
+	def _slabMomentDesign(self):
+
+		"""This method calculates the moment design of the slab
+
+		Returns:
+			
+			momentDesign = moment design of the slab, lbf*in
+
+		"""
+
+		self._momentDesign=[]
+		i=0
+		for i in range(len(self._lengthAppliesMoments)):
+			self._momentDesign.append(self._strengthReductionFactor*self._reinforcementArea[i]*self._specifiedYieldStrengthReinforcement*(self._distanceToTensionReinforcement-0.59*(self._reinforcementArea[i]*self._specifiedYieldStrengthReinforcement/(self._lengthAppliesMoments[i]*self._specifiedCompressiveStrengthConcrete))))
+		
+class oneWay(slab):
+
+	"""This class inherits the common methods from the Class slabs and adds the particular ones from One-Way slabs. 
+		The class calculates the quantities of steel and concrete in a slab
+	"""
+	
+	def design(self,lengthSpanX,columnDimensionX,lengthSpanY,columnDimensionY):
+
+		"""This method specifies the order to execute the methods to calculate the quantities of steel and concrete of a slab
+		Arguments:
+			
+			lengthSpanX = length of span parallel to the x-axis, measured center-to-center of supports, in
+			lengthSpanY = length of span parallel to the y-axis, measured center-to-center of supports, in
+			columnDimensionX = column dimensions parallel to the x-axis, in
+			columnDimensionY= column dimensions parallel to the y-axis, in
+
+		Returns:
+			
+			slabThickness = thickness of the slab, in
+			steelQuantities = quantities of steel, psf
+			concreteQuantities = quantities of concrete, ft³
+
+		"""
+
+		self.geometricParameters(lengthSpanX,columnDimensionX,lengthSpanY,columnDimensionY)
+		self._minimumStiffnessThickness()
+		self._loadForMinimumStiffnessThickness()
+		self._verificationOfLoadCondition()
+		self._factoredShear()
+		self._tickness()
+		self._factoredLoadForDefinitiveThickness()
+		self._factoredMomentsForDefinitiveThickness()
+		self._slabReinforcementArea()
+		self._slabMomentDesign()
+		self._quantities()
+
+	def _minimumStiffnessThickness(self):
+
+		"""This method calculates the minimum thickness of the slab for stiffness requirements
+
+		Returns:
+
+			minimumThicknes = minimum thickness of the slab for stiffness requirements, in
+
+		"""
+
+		self._minimumThickness=math.ceil((self._lengthClearSpanMinimum/20)*(0.4+self._specifiedYieldStrengthReinforcement/100000))
+
+
+	def _verificationOfLoadCondition(self):
+
+		"""This method checks that the load condition is verified for the chosen calculation procedure used
+
+		Returns:
+			loadCondition = boolean value indicating that the load condition is verified
+
+		"""
+
+		if self._liveLoad>3*self._deadLoadForMinimumStiffnessThickness:
+			self._loadCondition=True
 		else:
-			self.__Vuu=self.__quhMin*self.__lmin/2
+			self._loadCondition=False
 
-	def __hforShear(self):
-		self.__dd=0.8*self.__hMin
-		self.__lamdaS=min(1,(2/(1+(self.__dd/10)))**0.5)
-		if self.__ratio>2:
-			self.__hShear=self.__rundingup((self.__Vuu)/(2*0.8*0.75*self.__fc**0.5))
+	def _factoredShear(self):
+
+		"""This method calculates the factored shear for minimum stiffness thickness
+
+		Returns:
+			shear = factored shear for minimum stiffness thickness, lbf/in
+
+		"""
+
+		self._shear=1.15*self._factoredLoadForMinimumStiffnessThickness*self._lengthClearSpanMaximum/2
+
+
+	def _tickness(self):
+
+		"""This method calculates the the thickness of the slab, which is the greatest of the shear and stiffness requirements.
+
+		Returns:
+			slabThickness = thickness of the slab, which is the greatest of the shear and stiffness requirements, in
+			distanceToTensionReinforcement = distance from extreme compression fiber to centroid of longitudinal tension reinforcement, in
+
+		"""
+
+		shearThickness=math.ceil((self._shear)/(2*0.8*0.75*self._specifiedCompressiveStrengthConcrete**0.5))
+		self.slabThickness=max(shearThickness,self._minimumThickness)
+		self._distanceToTensionReinforcement=self.slabThickness*0.8
+
+	def _factoredMomentsForDefinitiveThickness(self):
+
+		"""This method calculates the factored moments for definitive thickness, and the length where it is applies 
+
+		Returns:
+
+			factoredMoments = factored moments for definitive thickness, lbf*in
+			lengthAppliesMoments = length where it is applies the factored moments, in
+
+		"""
+	
+		factoredLoadPerUnitLength=self._factoredLoad*self._lengthSpanMaximum
+		self._factoredMoments=[factoredLoadPerUnitLength*self._lengthClearSpanMinimum**2/10,factoredLoadPerUnitLength*self._lengthClearSpanMinimum**2/14]
+		self._lengthAppliesMoments=[self._lengthSpanMaximum,self._lengthSpanMaximum]
+
+	def _quantities(self):
+
+		"""This method calculates the quantities of concrete and steel for the slab
+
+		Returns:
+			
+			steelQuantities = quantities of steel, psf
+			concreteQuantities = quantities of concrete, ft³
+
+		"""
+
+		steelVolumen=(self._reinforcementArea[0]*self._lengthSpanMinimum+self._reinforcementArea[1]*self._lengthSpanMinimum)*2
+		
+		#In steelQuantities multiply by (144) to convert units ft²-->in²
+		self.steelQuantities=self._steelDensity*steelVolumen/(self._lengthSpanX*self._lengthSpanY)*144
+
+		#In concreteQuantities multiply by (1/728) to convert units in³-->ft³
+		self.concreteQuantities=self._lengthSpanX*self._lengthSpanY*self.slabThickness*(1/1728)
+
+class twoWay(slab):
+
+	"""This class inherits the common methods from the Class slabs and adds the particular ones from Two-Way slabs. 
+		The class calculates the quantities of steel and concrete in a slab
+	"""
+
+	def design(self,lengthSpanX,columnDimensionX,lengthSpanY,columnDimensionY):
+
+		"""This method specifies the order to execute the methods to calculate the quantities of steel and concrete of a slab
+		Arguments:
+			
+			lengthSpanX = length of span parallel to the x-axis, measured center-to-center of supports, in
+			lengthSpanY = length of span parallel to the y-axis, measured center-to-center of supports, in
+			columnDimensionX = column dimensions parallel to the x-axis, in
+			columnDimensionY= column dimensions parallel to the y-axis, in
+
+		Returns:
+			
+			slabThickness = thickness of the slab, in
+			steelQuantities = quantities of steel, psf
+			concreteQuantities = quantities of concrete, ft³
+
+		"""
+
+		self.geometricParameters(lengthSpanX,columnDimensionX,lengthSpanY,columnDimensionY)
+		self._minimumStiffnessThickness()
+		self._loadForMinimumStiffnessThickness()
+		self._verificationOfLoadCondition()
+		self._factoredShear()
+		self._tickness()
+		self._factoredLoadForDefinitiveThickness()
+		self._factoredMomentsForDefinitiveThickness()
+		self._slabReinforcementArea()
+		self._slabMomentDesign()
+		self._quantities()
+
+	def _minimumStiffnessThickness(self):
+
+		"""This method calculates the minimum thickness of the slab for stiffness requirements
+
+		Returns:
+
+			minimumThicknes = minimum thickness of the slab for stiffness requirements, in
+
+		"""
+
+		minimumThicknessBySpecifiedYieldStrengthReinforcement=[[40000,60000,80000],[self._lengthClearSpanMaximum/36,self._lengthClearSpanMaximum/33,self._lengthClearSpanMaximum/30]]
+		self._minimumThickness=math.ceil(self._linealInterpolate(self._specifiedYieldStrengthReinforcement,0,1,minimumThicknessBySpecifiedYieldStrengthReinforcement))
+
+
+	def _verificationOfLoadCondition(self):
+
+		"""This method checks that the load condition is verified for the chosen calculation procedure used
+
+		Returns:
+			loadCondition = boolean value indicating that the load condition is verified
+
+		"""
+
+		if self._liveLoad>2*self._deadLoadForMinimumStiffnessThickness:
+			self._loadCondition=True
 		else:
-			self.__hShear=self.__rundingup(self.__Vuu/(2*0.8*0.75*self.__lamdaS*self.__fc**0.5))
-		self.__h=max(self.__hShear,self.__hMin)
-		self.__d=self.__h*0.8
+			self._loadCondition=False
 
-	def __Deadd(self): #Factored load
-		self.__Dslab=self.__wc*self.__h*(1/12) #1/12 units in-->ft
-		self.__Dead=self.__Dslab+self.__Dws
+	def _factoredShear(self):
 
-	def __quu(self):
-		self.__U1=1.4*self.__Dead
-		self.__U2=1.2*self.__Dead+1.6*self.__L
-		self.__qu=max(self.__U1,self.__U2)*(1/144) #1/144 units psf-->psi
+		"""This method calculates the factored shear for minimum stiffness thickness
 
-	def __factoredMoment(self): #5. Factored Moment
-		if self.__ratio > 2:
-			self.__wu=self.__qu*self.__lmax
-			self.__Mu=[self.__wu*self.__lnmin**2/10,self.__wu*self.__lnmin**2/14]
-		else:
-			self.__M0x=self.__qu*self.__lx*self.__lny**2/8
-			self.__M0y=self.__qu*self.__ly*self.__lnx**2/8
-			self.__Mu=[0.70*self.__M0y,0.70*self.__M0y,0.57*self.__M0y,0.70*self.__M0x,0.70*self.__M0x,self.__M0x*0.57]
+		Returns:
+			shear = factored shear for minimum stiffness thickness, lbf/in
 
-	def __bb(self):	
-		if self.__ratio>2:
-			self.__b=[self.__lmax,self.__lmax]
-		else:
-			self.__b=[self.__ly,self.__ly,self.__ly,self.__lx,self.__lx,self.__lx]
+		"""
 
-	def __Asss(self): #6. Design moment
-		self.__fi=0.9
-		def Ass():
-			As=[]
-			i=0
-			for i in range(len(self.__b)):
-				Asoli=(0.85*self.__fc*self.__b[i]/self.__fy*(self.__d-((self.__d**2-((2*self.__Mu[i])/(self.__fi*0.85*self.__fc*self.__b[i]))))**0.5))
-				AMini=(0.0018*self.__b[i]*self.__h)
-				Ai=max(Asoli,AMini)
-				As.append(Ai)
-			return As
-		self.__As=Ass()
+		self._shear=self._factoredLoadForMinimumStiffnessThickness*self._lengthSpanMinimum/2
 
-	def __Mddd(self):
-		def Mdd():
-			Md=[]
-			i=0
-			for i in range(len(self.__b)):
-				Md.append(self.__fi*self.__As[i]*self.__fy*(self.__d-0.59*(self.__As[i]*self.__fy/(self.__b[i]*self.__fc))))
-			return Md
-		self.__Md=Mdd()
+	def _tickness(self):
 
-	def __quantities(self):
-		if self.__ratio >2:
-			self.__steelVolumen=(self.__As[0]*self.__lmin+self.__As[1]*self.__lmin)*2
-		else:
-			self.__steelVolumen=self.__As[0]*self.__lx/3+self.__As[1]*self.__lx/3+self.__As[2]*self.__lx+self.__As[3]*self.__ly/3+self.__As[4]*self.__ly/3+self.__As[5]*self.__ly
+		"""This method calculates the the thickness of the slab, which is the greatest of the shear and stiffness requirements.
 
-		self.__steelQuantities=self.__steelDensity*self.__steelVolumen/(self.__lx*self.__ly)*144 #psf 1728 units ft²-->in²
-		self.__concreteQuantities=self.__lx*self.__ly*self.__h*(1/1728)
+		Returns:
+			slabThickness = thickness of the slab, which is the greatest of the shear and stiffness requirements, in
+			distanceToTensionReinforcement = distance from extreme compression fiber to centroid of longitudinal tension reinforcement, in
 
-	def design(self,Dws,L,lx,cx,ly,cy,fy,fc,wc):
-		self.__input(Dws,L,lx,cx,ly,cy,fy,fc,wc)
-		self.__ratioo()
-		self.__minThickness()
-		self.__Deadhm()
-		self.__quhm()
+		"""
 
-		if self.__ratio>2:
-			print("One-way slab")
-		else:
-			print("Two-way slab")
+		sizeEffectFactorForShear=min(1,(2/(1+(0.8*self._minimumThickness/10)))**0.5)
+		shearThickness=math.ceil(self._shear/(2*0.8*0.75*sizeEffectFactorForShear*self._specifiedCompressiveStrengthConcrete**0.5))
+		self.slabThickness=max(shearThickness,self._minimumThickness)
+		self._distanceToTensionReinforcement=self.slabThickness*0.8
 
-		self.__LoadCond()
-		self.__Vu()
-		self.__hforShear()
-		self.__Deadd()
-		self.__quu()
-		self.__factoredMoment()
-		self.__bb()
-		self.__Asss()
-		self.__Mddd()
-		self.__quantities()
 
-		print("The slab thickness is (in): ")
-		print(self.__h)
-		print("The Steel Quantities are (psf): ")
-		print(self.__steelQuantities)
-		print("The Concrete Quantities are (ft³): ")
-		print(self.__concreteQuantities)
-		print("Design finished")
-		input(" ")
+	def _factoredMomentsForDefinitiveThickness(self):
 
-def main():
-	mySlab=slab()
-	mySlab.design(50,100,240,8,156,8,60000,4000,150)
+		"""This method calculates the factored moments for definitive thickness, and the length where it is applies 
+
+		Returns:
+
+			factoredMoments = factored moments for definitive thickness, lbf*in
+			lengthAppliesMoments = length where it is applies the factored moments, in
+
+		"""
+
+		momentToDistributeInX=self._factoredLoad*self._lengthSpanX*self._lengthClearSpanY**2/8
+		momentToDistributeInY=self._factoredLoad*self._lengthSpanY*self._lengthClearSpanX**2/8
+		self._factoredMoments=[0.70*momentToDistributeInY,0.70*momentToDistributeInY,0.57*momentToDistributeInY,0.70*momentToDistributeInX,0.70*momentToDistributeInX,momentToDistributeInX*0.57]
+		self._lengthAppliesMoments=[self._lengthSpanY,self._lengthSpanY,self._lengthSpanY,self._lengthSpanX,self._lengthSpanX,self._lengthSpanX]
+
+	def _quantities(self):
+
+		"""This method calculates the quantities of concrete and steel for the slab
+
+		Returns:
+
+			steelQuantities = quantities of steel, psf
+			concreteQuantities = quantities of concrete, ft³
+
+		"""
+
+		steelVolumen=self._reinforcementArea[0]*self._lengthSpanX/3+self._reinforcementArea[1]*self._lengthSpanX/3+self._reinforcementArea[2]*self._lengthSpanX+self._reinforcementArea[3]*self._lengthSpanY/3+self._reinforcementArea[4]*self._lengthSpanY/3+self._reinforcementArea[5]*self._lengthSpanY
+		
+		#In steelQuantities multiply by (144) to convert units ft²-->in²
+		self.steelQuantities=self._steelDensity*steelVolumen/(self._lengthSpanX*self._lengthSpanY)*144
+
+		#In concreteQuantities multiply by (1/728) to convert units in³-->ft³
+		self.concreteQuantities=self._lengthSpanX*self._lengthSpanY*self.slabThickness*(1/1728)
+
 
 if __name__ == "__main__":
-    main()
+
+	"""This main function contains an example
+	"""
+
+	mySlab=slab()
+	mySlab.geometricParameters(315,15,315,15)
+
+	if mySlab.ratioLengthSpan > 2:
+		mySlab=oneWay()
+		print("One-way slab")
+	else:
+		mySlab=twoWay()
+		print("Two-way slab")
+
+	mySlab.design(315,15,315,15)
+
+
+	print("The slab thickness is ",mySlab.slabThickness," in")
+	print("The Steel Quantities are ",round(mySlab.steelQuantities,2)," psf")
+	print("The Concrete Quantities are ",round(mySlab.concreteQuantities,2)," ft³")
+	print("Design finished")
+	input(" ")
 
